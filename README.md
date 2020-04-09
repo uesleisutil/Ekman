@@ -1,3 +1,3 @@
-# Ekman toolbox.
+# Ekman toolbox
 
 Under construction.
