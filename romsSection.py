@@ -1,5 +1,5 @@
 """
-Generates a new ROMS file output from scratch as a netCDF4 CF-comlpliant.
+Generates a new ROMS output file from scratch. It is netCDF4 CF-compliant.
 
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
