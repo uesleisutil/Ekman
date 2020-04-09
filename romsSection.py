@@ -29,7 +29,7 @@ def romsVars(romsOriDir,romsNewDir):
     print('ROMS section activated.')
     # Original output file.
     romsRawFile             = Dataset(romsOriDir, mode='r')
-    romsNewFile             = Dataset(romsNewDir, 'w', format='NETCDF4',)
+    romsNewFile             = Dataset(romsNewDir, 'w', format='NETCDF4')
     romsNewFile.title       = "ROMS output file"
     romsNewFile.description = "Created with Ekman Toolbox at " + time.ctime(time.time())
     romsNewFile.link        = "https://github.com/uesleisutil/Ekman"
@@ -52,13 +52,13 @@ def romsVars(romsOriDir,romsNewDir):
         romsNewFile.createDimension('xi_rho', len(xi_rho))
         romsNewFile.createDimension('s_rho', len(s_rho))
 
-        romsNewLon               = romsNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho',), zlib=True, fill_value=romsFillVal)
+        romsNewLon               = romsNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
         romsNewLon.long_name     = 'Longitude on RHO-points'
         romsNewLon.units         = 'degree_east'
         romsNewLon.standard_name = 'longitude'
         romsNewLon[:, :]         = lon_rho
 
-        romsNewLat               = romsNewFile.createVariable('lat_rho', 'd', ('eta_rho', 'xi_rho',), fill_value=romsFillVal)
+        romsNewLat               = romsNewFile.createVariable('lat_rho', 'd', ('eta_rho', 'xi_rho'), fill_value=romsFillVal)
         romsNewLat.long_name     = 'Latitude on RHO-points'
         romsNewLat.units         = 'degree_north'
         romsNewLat.standard_name = 'latitude'
@@ -68,7 +68,7 @@ def romsVars(romsOriDir,romsNewDir):
         if romsTemp == True:
             print('Working on ROMS Temperature.')
             romsRawVar           = romsRawFile.variables['temp'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho',), zlib=True, fill_value=romsFillVal)
+            romsNewVar           = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Potential Temperature'
             romsNewVar.units     = 'Celsius'
             romsNewVar[:,:,:,:]  = romsRawVar
@@ -78,7 +78,7 @@ def romsVars(romsOriDir,romsNewDir):
         if romsSalt == True:
             print('Working on ROMS Salinity.')
             romsRawVar           = romsRawFile.variables['salt'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho',), zlib=True, fill_value=romsFillVal)
+            romsNewVar           = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Salinity'
             romsNewVar.units     = 'PSU'
             romsNewVar[:,:,:,:]  = romsRawVar
@@ -109,25 +109,25 @@ def romsVars(romsOriDir,romsNewDir):
         
         romsNewFile.createDimension('s_rho', len(s_rho))
 
-        romsNewLonU               = romsNewFile.createVariable('lon_u', 'd', ('eta_u', 'xi_u',), zlib=True, fill_value=romsFillVal)
+        romsNewLonU               = romsNewFile.createVariable('lon_u', 'd', ('eta_u', 'xi_u'), zlib=True, fill_value=romsFillVal)
         romsNewLonU.long_name     = 'Longitude on U-points'
         romsNewLonU.units         = 'degree_east'
         romsNewLonU.standard_name = 'longitude'
         romsNewLonU[:, :]         = lon_u
 
-        romsNewLonV               = romsNewFile.createVariable('lon_v', 'd', ('eta_v', 'xi_v',), zlib=True, fill_value=romsFillVal)
+        romsNewLonV               = romsNewFile.createVariable('lon_v', 'd', ('eta_v', 'xi_v'), zlib=True, fill_value=romsFillVal)
         romsNewLonV.long_name     = 'Longitude on V-points'
         romsNewLonV.units         = 'degree_east'
         romsNewLonV.standard_name = 'longitude'
         romsNewLonV[:, :]         = lon_v
 
-        romsNewLatU               = romsNewFile.createVariable('lat_u', 'd', ('eta_u', 'xi_u',), fill_value=romsFillVal)
+        romsNewLatU               = romsNewFile.createVariable('lat_u', 'd', ('eta_u', 'xi_u'), fill_value=romsFillVal)
         romsNewLatU.long_name     = 'Latitude on U-points'
         romsNewLatU.units         = 'degree_north'
         romsNewLatU.standard_name = 'latitude'
         romsNewLatU[:, :]         = lat_u
 
-        romsNewLatV               = romsNewFile.createVariable('lat_v', 'd', ('eta_v', 'xi_v',), fill_value=romsFillVal)
+        romsNewLatV               = romsNewFile.createVariable('lat_v', 'd', ('eta_v', 'xi_v'), fill_value=romsFillVal)
         romsNewLatV.long_name     = 'Latitude on U-points'
         romsNewLatV.units         = 'degree_north'
         romsNewLatV.standard_name = 'latitude'
@@ -137,7 +137,7 @@ def romsVars(romsOriDir,romsNewDir):
         if romsV == True:
             print('Working on ROMS V-velocity')
             romsRawVar           = romsRawFile.variables['v'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v',), zlib=True, fill_value=romsFillVal)
+            romsNewVar           = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'V-Velocity'
             romsNewVar.units     = 'm/s'
             romsNewVar[:,:,:,:]  = romsRawVar
@@ -148,7 +148,7 @@ def romsVars(romsOriDir,romsNewDir):
         if romsU == True:
             print('Working on ROMS U-Velocity.')
             romsRawVar           = romsRawFile.variables['u'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u',), zlib=True, fill_value=romsFillVal)
+            romsNewVar           = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'U-Velocity'
             romsNewVar.units     = 'm/s'
             romsNewVar[:,:,:,:]  = romsRawVar
