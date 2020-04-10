@@ -2,7 +2,7 @@
 
 Ekman is a Python-based toolbox to postprocess Weather Research Forecast (WRF), Regional Ocean Modeling System (ROMS), Wave-Watch 3 (WW3) and Budgell's Sea Ice outputs files. 
 
-<b>This toolbox is under construction and I plan to add new version in the future.</b>
+<b>This toolbox is under construction and I plan to add (a lot of) new modifications in the near future.</b>
 
 <h2>TODO list</h2>
 <li>ROMS: Insert zeta, h, sensible and latent variables.</li>
