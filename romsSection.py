@@ -49,6 +49,7 @@ def romsVars(romsOriDir,romsNewDir):
         lat_rho = romsRawFile.variables['lat_rho'][:,:] 
 
         romsNewFile.createDimension('eta_rho', len(eta_rho))    
+
         romsNewFile.createDimension('xi_rho', len(xi_rho))
         romsNewFile.createDimension('s_rho', len(s_rho))
 

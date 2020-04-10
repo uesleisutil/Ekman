@@ -7,7 +7,11 @@ Last modified:  08 Apr 2019
 Version:        1.1
 Python version: 3.3+
 
-TODO: - Insert WW3 and Sea-Ice.
+TODO
+      - ROMS: Insert zeta, h, sensible and latent variables.
+      - SeaIce: Comming soon.
+      - WRF: Comming soon.
+      - WW3: Comming soon.
 """
 
 # Import libraries.

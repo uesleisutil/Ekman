@@ -5,6 +5,7 @@ projectName    = 'SC_2008'
 romsOriginalFilename = 'ocean_his.nc'
 romsNewFilename      = 'ocean_his_new.nc'
 selectRomsVars       = True
+selectIceVars        = True
 
 romsTemp             = False
 romsSalt             = False
