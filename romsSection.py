@@ -2,10 +2,12 @@
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
 Last modified:  12 Apr 2019
-Version:        1.5
+Version:        1.6
 
-Generates a new ROMS output file from scratch.
+This file generates a new ROMS output file from scratch.
 It is netCDF4 CF-compliant.
+
+WARNING: Do not change anything in this file.
 """
 
 from   netCDF4    import Dataset
@@ -25,7 +27,13 @@ else:
 
 romsFillVal = 1.e+37
 
+
+WARNING: Do not change anything in this file.
+
 def romsVars(romsOriDir,romsNewDir):
+    """
+    Generates a new ROMS output file from scratch.
+    """
     print('ROMS section activated.')
     # Original output file.
     romsRawFile             = Dataset(romsOriDir, mode='r')
@@ -36,9 +44,10 @@ def romsVars(romsOriDir,romsNewDir):
 
     # New ROMS output file.
     romsNewFile.createDimension('ocean_time', 0)
+    roms_time              = romsRawFile.variables['ocean_time']
     romsNewOTdim           = romsNewFile.createVariable('ocean_time', dtype('double').char, ('ocean_time'))
-    romsNewOTdim.long_name = 'seconds since 1900-01-01 00:00:00'
-    romsNewOTdim.units     = 'seconds since 1900-01-01 00:00:00'
+    romsNewOTdim.long_name = roms_time.units
+    romsNewOTdim.units     = roms_time.units
 
     # If a variable on mass point has been chosen.
     if romsMassPoints == True:
@@ -192,7 +201,7 @@ def romsVars(romsOriDir,romsNewDir):
             romsNewVar                = romsNewFile.createVariable('w', 'f', ('ocean_time', 's_w','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Vertical Momentum Component'
             romsNewVar.units          = 'm s-1'
-            romsNewVar[:,:,:,:]         = romsRawVar
+            romsNewVar[:,:,:,:]       = romsRawVar
             del romsRawVar, romsNewVar     
 
         if romsOmega== True:

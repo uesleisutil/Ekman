@@ -3,14 +3,12 @@ File name:      main.py
 Author:         Ueslei Adriano Sutil
 Email:          uesleisutil1@gmail.com
 Created:        07 Apr 2019
-Last modified:  08 Apr 2019
-Version:        1.1
+Last modified:  12 Apr 2019
+Version:        1.1.1
 Python version: 3.3+
 
-TODO
-      - SeaIce: Comming soon.
-      - WRF: Comming soon.
-      - WW3: Comming soon.
+This file runs the Ekman Toolbox.
+WARNING: Do not change anything in this file.
 """
 
 # Import libraries.
