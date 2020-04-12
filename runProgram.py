@@ -8,19 +8,16 @@ Version:        1.1
 Python version: 3.3+
 
 TODO
-      - ROMS: Insert zeta, h, sensible and latent variables.
       - SeaIce: Comming soon.
       - WRF: Comming soon.
       - WW3: Comming soon.
 """
 
 # Import libraries.
-
 import os
 from   configureProject import *
 from   romsSection import *
 from   setOptions import *
-
 
 # Check if project already exists. If not, create a new one.
 checkFolder = os.path.isdir('./'+projectName) 

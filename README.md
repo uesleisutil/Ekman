@@ -6,11 +6,19 @@ Ekman is a Python-based toolbox to postprocess Weather Research Forecast (WRF), 
 
 <h2>TODO list</h2>
 <ul>
-<li>ROMS: Insert zeta, h, sensible and latent variables.</li>
+<li>ROMS: Insert zeta, h, sensible and latent variables. Add a function to crop lat/lon original file into a new smaller one.</li>
 <li>SeaIce: Comming soon.</li>
 <li>WRF: Comming soon.</li>
 <li>WW3: Comming soon.</li>
 </ul>
+
+<h2>Pre-required libraries</h2>
+<ul>
+<li>numpy</li>
+<li>netCDF4</li>
+</ul>
+
+
 
 <h2>Contact</h2>
 <ul>
