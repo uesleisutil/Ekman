@@ -3,8 +3,8 @@ File name:      main.py
 Author:         Ueslei Adriano Sutil
 Email:          uesleisutil1@gmail.com
 Created:        07 Apr 2019
-Last modified:  12 Apr 2019
-Version:        1.1.1
+Last modified:  13 Apr 2019
+Version:        1.2
 Python version: 3.3+
 
 This file runs the Ekman Toolbox.
@@ -14,8 +14,11 @@ WARNING: Do not change anything in this file.
 # Import libraries.
 import os
 from   configureProject import *
-from   romsSection import *
 from   setOptions import *
+if selectRomsVars == True:
+    from   romsSection import *
+if selectIceVars == True:
+    from   iceSection import *
 
 # Check if project already exists. If not, create a new one.
 checkFolder = os.path.isdir('./'+projectName) 
@@ -31,10 +34,13 @@ else:
     pass
 
 # ROMS section.
-if selectRomsVars == True:
-    romsOriDir = getFolder+'/'+projectName+'/netcdf_files/ROMS/'+romsOriginalFilename
-    romsNewDir = getFolder+'/'+projectName+'/netcdf_files/ROMS/'+romsNewFilename
+if selectRomsVars or selectRomsBox or selectRomsLevel == True:
+    romsOriDir = getFolder+'/'+projectName+'/netcdf_files/'+romsOriginalFilename
+    romsNewDir = getFolder+'/'+projectName+'/netcdf_files/'+romsNewFilename
     romsVars(romsOriDir,romsNewDir)
-
+if selectIceVars == True:
+    iceOriDir = getFolder+'/'+projectName+'/netcdf_files/'+iceOriginalFilename
+    iceNewDir = getFolder+'/'+projectName+'/netcdf_files/'+iceNewFilename
+    iceVars(iceOriDir,iceNewDir)
 # Program finished.
 print('Program finished.')

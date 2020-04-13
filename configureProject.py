@@ -5,8 +5,6 @@ def createFolders(directory):
         if not os.path.exists(directory):
             os.makedirs(directory)
             os.makedirs(directory+'/netcdf_files')
-            os.makedirs(directory+'/netcdf_files/ROMS')         
-            os.makedirs(directory+'/netcdf_files/WRF')
             os.makedirs(directory+'/figures/evaluation/WRF')
             os.makedirs(directory+'/figures/evaluation/ROMS')
             os.makedirs(directory+'/analysis/ROMS')
