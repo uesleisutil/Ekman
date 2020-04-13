@@ -60,7 +60,6 @@ iceSurfaceTemp      = True
 iceOceanMassFlux    = True
 iceInteriorTemp     = True
 
-
 ####### WRF section.
 
 

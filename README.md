@@ -6,7 +6,6 @@ Ekman is a Python-based toolbox to postprocess Weather Research Forecast (WRF), 
 
 <h2>TODO list</h2>
 <ul>
-<li>SeaIce: Comming soon.</li>
 <li>WRF: Comming soon.</li>
 <li>WW3: Comming soon.</li>
 </ul>

@@ -2,7 +2,7 @@
 Author:         Ueslei Adriano Sutil
 Created:        12 Apr 2019
 Last modified:  12 Apr 2019
-Version:        1.0
+Version:        1.1
 
 This file generates a new Sea Ice output file from scratch.
 It is netCDF4 CF-compliant.
@@ -17,7 +17,6 @@ from   matplotlib import path
 import numpy      as np
 import time
 import netCDF4
-
 
 iceFillVal = 1.e+37
 
@@ -63,141 +62,142 @@ def iceVars(iceOriDir,iceNewDir):
     iceNewOTdim.units     = ice_time.units
 
     s_rho   = iceRawFile.dimensions['s_rho']
-    s_w     = iceRawFile.dimensions['s_w']       
+    s_w     = iceRawFile.dimensions['s_w'] 
+          
+    if selectIceBox == True:
+        lon_rho     = iceRawFile.variables['lon_rho'][:,:]
+        lat_rho     = iceRawFile.variables['lat_rho'][:,:]
+        i0,i1,j0,j1 = bbox2ij(lon_rho,lat_rho,iceBox)
+        lon_rho     = iceRawFile.variables['lon_rho'][j0:j1, i0:i1]
+        lat_rho     = iceRawFile.variables['lat_rho'][j0:j1, i0:i1]  
+        iceNewFile.createDimension('eta_rho', len(lon_rho[:,0]))    
+        iceNewFile.createDimension('xi_rho', len(lon_rho[0,:]))           
+    else:            
+        lon_rho = iceNewFile.variables['lon_rho'][:,:]
+        lat_rho = iceNewFile.variables['lat_rho'][:,:] 
+        eta_rho = iceNewFile.dimensions['eta_rho']
+        xi_rho  = iceNewFile.dimensions['xi_rho']
+        iceNewFile.createDimension('eta_rho', len(eta_rho))    
+        iceNewFile.createDimension('xi_rho', len(xi_rho))  
+    
+    iceNewLon               = iceNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+    iceNewLon.long_name     = 'Longitude on RHO-points'
+    iceNewLon.units         = 'degree_east'
+    iceNewLon.standard_name = 'longitude'
+    iceNewLon[:,:]          = lon_rho
+
+    iceNewLat               = iceNewFile.createVariable('lat_rho', 'd', ('eta_rho', 'xi_rho'), fill_value=iceFillVal)
+    iceNewLat.long_name     = 'Latitude on RHO-points'
+    iceNewLat.units         = 'degree_north'
+    iceNewLat.standard_name = 'latitude'
+    iceNewLat[:, :]         = lat_rho    
+
+    if iceAge == True:
+        print('Working on Sea-ice Age.')
         if selectIceBox == True:
-            lon_rho     = iceRawFile.variables['lon_rho'][:,:]
-            lat_rho     = iceRawFile.variables['lat_rho'][:,:]
-            i0,i1,j0,j1 = bbox2ij(lon_rho,lat_rho,iceBox)
-            lon_rho     = iceRawFile.variables['lon_rho'][j0:j1, i0:i1]
-            lat_rho     = iceRawFile.variables['lat_rho'][j0:j1, i0:i1]  
-            iceNewFile.createDimension('eta_rho', len(lon_rho[:,0]))    
-            iceNewFile.createDimension('xi_rho', len(lon_rho[0,:]))           
-        else:            
-            lon_rho = iceNewFile.variables['lon_rho'][:,:]
-            lat_rho = iceNewFile.variables['lat_rho'][:,:] 
-            eta_rho = iceNewFile.dimensions['eta_rho']
-            xi_rho  = iceNewFile.dimensions['xi_rho']
-            iceNewFile.createDimension('eta_rho', len(eta_rho))    
-            iceNewFile.createDimension('xi_rho', len(xi_rho))  
-        
-        iceNewLon               = iceNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewLon.long_name     = 'Longitude on RHO-points'
-        iceNewLon.units         = 'degree_east'
-        iceNewLon.standard_name = 'longitude'
-        iceNewLon[:,:]          = lon_rho
+            iceRawVar            = iceRawFile.variables['ageice'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['ageice'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('ageice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Sea-ice age'
+        iceNewVar.units          = 's'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        iceNewLat               = iceNewFile.createVariable('lat_rho', 'd', ('eta_rho', 'xi_rho'), fill_value=iceFillVal)
-        iceNewLat.long_name     = 'Latitude on RHO-points'
-        iceNewLat.units         = 'degree_north'
-        iceNewLat.standard_name = 'latitude'
-        iceNewLat[:, :]         = lat_rho    
+    if iceA == True:
+        print('Working on Sea-ice fraction of cell covered by ice.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['aice'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['aice'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('aice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Fraction of Cell Covered by Ice'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceAge == True:
-            print('Working on Sea-ice Age.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['ageice'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['ageice'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('ageice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Sea-ice age'
-            iceNewVar.units          = 's'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceH == True:
+        print('Working on Sea-ice average ice thickness in cell.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['hice'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['hice'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('hice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Average Ice Thickness in Cell'
+        iceNewVar.units          = 'meter'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceA == True:
-            print('Working on Sea-ice fraction of cell covered by ice.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['aice'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['aice'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('aice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Fraction of Cell Covered by Ice'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceV == True:
+        print('Working on Sea-ice V-velocity.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['vice'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['vice'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'V-component of Ice Velocity'
+        iceNewVar.units          = 'm s-1'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceH == True:
-            print('Working on Sea-ice average ice thickness in cell.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['hice'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['hice'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('hice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Average Ice Thickness in Cell'
-            iceNewVar.units          = 'meter'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceU == True:
+        print('Working on Sea-ice U-velocity.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['uice'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['uice'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'U-component of Ice Velocity'
+        iceNewVar.units          = 'm s-1'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceV == True:
-            print('Working on Sea-ice V-velocity.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['vice'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['vice'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'V-component of Ice Velocity'
-            iceNewVar.units          = 'm s-1'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceSnowThick == True:
+        print('Working on Sea-ice U-velocity.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['snow_thick'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['snow_thick'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('snow_thick', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Sea-cover Thickness'
+        iceNewVar.units          = 'meter'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceU == True:
-            print('Working on Sea-ice U-velocity.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['uice'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['uice'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'U-component of Ice Velocity'
-            iceNewVar.units          = 'm s-1'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceSurfaceTemp == True:
+        print('Working on Sea-ice Surface Temperature.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['tisrf'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['tisrf'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('tisrf', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Sea-ice Surface Temperature'
+        iceNewVar.units          = 'Degree Celsius'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceSnowThick == True:
-            print('Working on Sea-ice U-velocity.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['snow_thick'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['snow_thick'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('snow_thick', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Sea-cover Thickness'
-            iceNewVar.units          = 'meter'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceOceanMassFlux == True:
+        print('Working on Ice-Ocean Mass Flux.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['iomflx'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['iomflx'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('iomflx', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Ice-Ocean Mass Flux'
+        iceNewVar.units          = 'm s-1'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
-        if iceSurfaceTemp == True:
-            print('Working on Sea-ice Surface Temperature.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['tisrf'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['tisrf'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('tisrf', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Sea-ice Surface Temperature'
-            iceNewVar.units          = 'Degree Celsius'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
-
-        if iceOceanMassFlux == True:
-            print('Working on Ice-Ocean Mass Flux.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['iomflx'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['iomflx'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('iomflx', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Ice-Ocean Mass Flux'
-            iceNewVar.units          = 'm s-1'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
-
-        if iceInteriorTemp == True:
-            print('Working on Interior Ice Temperature.')
-            if selectIceBox == True:
-                iceRawVar            = iceRawFile.variables['ti'][:,j0:j1, i0:i1]  
-            else:              
-                iceRawVar            = iceRawFile.variables['ti'][:,:,:]
-            iceNewVar                = iceNewFile.createVariable('ti', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-            iceNewVar.long_name      = 'Interior Ice Temperature'
-            iceNewVar.units          = 'Degree Celcius'
-            iceNewVar[:,:,:]         = iceRawVar
-            del iceRawVar, iceNewVar  
+    if iceInteriorTemp == True:
+        print('Working on Interior Ice Temperature.')
+        if selectIceBox == True:
+            iceRawVar            = iceRawFile.variables['ti'][:,j0:j1, i0:i1]  
+        else:              
+            iceRawVar            = iceRawFile.variables['ti'][:,:,:]
+        iceNewVar                = iceNewFile.createVariable('ti', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+        iceNewVar.long_name      = 'Interior Ice Temperature'
+        iceNewVar.units          = 'Degree Celcius'
+        iceNewVar[:,:,:]         = iceRawVar
+        del iceRawVar, iceNewVar  
 
 
 

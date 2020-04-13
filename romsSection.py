@@ -55,7 +55,6 @@ def romsVars(romsOriDir,romsNewDir):
     """
     Generates a new ROMS output file from scratch.
     """
-    print('ROMS section activated.')
     # Original output file.
     romsRawFile             = Dataset(romsOriDir, mode='r')
     romsNewFile             = Dataset(romsNewDir, 'w', format='NETCDF4')
@@ -340,7 +339,7 @@ def romsVars(romsOriDir,romsNewDir):
             del romsRawVar, romsNewVar     
 
     if romsMassPoints == False:
-        print('No variables on mass-points has been chosen. Continuing.')
+        print('No ROMS variables on mass-points has been chosen. Continuing.')
         pass
 
     # If a variable on U and/or V point has been chosen.
@@ -477,4 +476,4 @@ def romsVars(romsOriDir,romsNewDir):
             romsNewVar[:,:,:]  = romsRawVar
             del romsRawVar, romsNewVar
     if romsUVPoints == False:
-        print('No variable on U or V-points has been chosen. Continuing.')
+        print('No ROMS variable on U or V-points has been chosen. Continuing.')

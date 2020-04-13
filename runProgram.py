@@ -15,11 +15,9 @@ WARNING: Do not change anything in this file.
 import os
 from   configureProject import *
 from   setOptions import *
-if selectRomsVars == True:
-    from   romsSection import *
-if selectIceVars == True:
-    from   iceSection import *
-
+from   romsSection import *
+from   iceSection import *
+ 
 # Check if project already exists. If not, create a new one.
 checkFolder = os.path.isdir('./'+projectName) 
 getFolder   = os.getcwd()
@@ -35,10 +33,12 @@ else:
 
 # ROMS section.
 if selectRomsVars or selectRomsBox or selectRomsLevel == True:
+    print('ROMS section activated.')
     romsOriDir = getFolder+'/'+projectName+'/netcdf_files/'+romsOriginalFilename
     romsNewDir = getFolder+'/'+projectName+'/netcdf_files/'+romsNewFilename
     romsVars(romsOriDir,romsNewDir)
 if selectIceVars == True:
+    print('Sea-Ice section activated.')
     iceOriDir = getFolder+'/'+projectName+'/netcdf_files/'+iceOriginalFilename
     iceNewDir = getFolder+'/'+projectName+'/netcdf_files/'+iceNewFilename
     iceVars(iceOriDir,iceNewDir)
