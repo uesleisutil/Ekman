@@ -2,7 +2,7 @@
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
 Last modified:  12 Apr 2019
-Version:        1.6
+Version:        1.7
 
 Use this file to select what do you want Ekman Toolbox to do.
 """

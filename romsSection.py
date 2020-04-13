@@ -1,8 +1,8 @@
 """
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
-Last modified:  12 Apr 2019
-Version:        1.6
+Last modified:  12, Apr 2019
+Version:        1.7
 
 This file generates a new ROMS output file from scratch.
 It is netCDF4 CF-compliant.
@@ -50,7 +50,6 @@ def bbox2ij(lon,lat,romsBox=[-160., -155., 18., 23.]):
     inside = p.contains_points(points).reshape((n,m))
     ii,jj = np.meshgrid(range(m),range(n))
     return min(ii[inside]),max(ii[inside]),min(jj[inside]),max(jj[inside])
-
 
 def romsVars(romsOriDir,romsNewDir):
     """
