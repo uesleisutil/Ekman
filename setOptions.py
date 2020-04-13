@@ -8,19 +8,26 @@ Use this file to select what do you want Ekman Toolbox to do.
 """
 
 ####### Project section.
-projectName    = 'SC_2008'
+projectName          = 'SC_2008'
 
-####### ROMS section. 
+####### ROMS and Sea Ice model section. 
 romsOriginalFilename = 'ocean_his.nc'
 romsNewFilename      = 'ocean_his_new.nc'
-selectRomsVars       = True
 
-romsTemp             = False
-romsSalt             = False
-romsZeta             = False
-romsTKE              = False
+selectRomsVars       = True
+selectRomsBox        = True
+selectRomsLevel      = True
+
+romsZLevel           =-1 # Last sigma layer corresponds to ocean surface.
+
+romsBox              = [-53, -40, -32, -23] # [lon_min, lon_max, lat_min, lat_max]
+romsTemp             = True
+romsSalt             = True
+romsZeta             = True
+romsTKE              = True
+romsRho              = True
 romsLatent           = False
-romsSensible         = True
+romsSensible         = False
 romsLWRad            = False
 romsSWRad            = False
 romsEminusP          = False
@@ -30,10 +37,9 @@ romsVwind            = False
 romsW                = False
 romsOmega            = False
 romsU                = False
-romsV                = False
+romsV                = True
 romsUbar             = False
 romsVbar             = False
-
 
 ####### WRF section.
 

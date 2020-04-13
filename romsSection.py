@@ -13,10 +13,12 @@ WARNING: Do not change anything in this file.
 from   netCDF4    import Dataset
 from   setOptions import *
 from   numpy      import dtype
+from   matplotlib import path 
 import numpy      as np
 import time
+import netCDF4
 
-if romsTemp or romsSalt or romsZeta or romsTKE or romsLatent or romsSensible or romsLWRad or romsSWRad or romsEvaporation or romsEminusP or romsUwind or romsVwind or romsW or romsOmega == True:
+if romsTemp or romsSalt or romsZeta or romsTKE or romsLatent or romsSensible or romsLWRad or romsSWRad or romsEvaporation or romsEminusP or romsUwind or romsVwind or romsW or romsOmega or romsRho == True:
     romsMassPoints = True
 else:
     romsMassPoints = False   
@@ -27,8 +29,28 @@ else:
 
 romsFillVal = 1.e+37
 
+def bbox2ij(lon,lat,romsBox=[-160., -155., 18., 23.]):
+    """Return indices for i,j that will completely cover the specified bounding box.
 
-WARNING: Do not change anything in this file.
+    i0,i1,j0,j1 = bbox2ij(lon,lat,romsBox)
+    
+    lon,lat = 2D arrays that are the target of the subset
+    romsBox = list containing the bounding box: [lon_min, lon_max, lat_min, lat_max]
+
+    Example
+    -------  
+    >>> i0,i1,j0,j1 = bbox2ij(lon_rho,[-71, -63., 39., 46])
+    >>> h_subset = nc.variables['h'][j0:j1,i0:i1]       
+    """
+    romsBox=np.array(romsBox)
+    mypath=np.array([romsBox[[0,1,1,0]],romsBox[[2,2,3,3]]]).T
+    p = path.Path(mypath)
+    points = np.vstack((lon.flatten(),lat.flatten())).T
+    n,m = np.shape(lon)
+    inside = p.contains_points(points).reshape((n,m))
+    ii,jj = np.meshgrid(range(m),range(n))
+    return min(ii[inside]),max(ii[inside]),min(jj[inside]),max(jj[inside])
+
 
 def romsVars(romsOriDir,romsNewDir):
     """
@@ -51,15 +73,24 @@ def romsVars(romsOriDir,romsNewDir):
 
     # If a variable on mass point has been chosen.
     if romsMassPoints == True:
-        eta_rho = romsRawFile.dimensions['eta_rho']
-        xi_rho  = romsRawFile.dimensions['xi_rho']
         s_rho   = romsRawFile.dimensions['s_rho']
         s_w     = romsRawFile.dimensions['s_w']       
-        lon_rho = romsRawFile.variables['lon_rho'][:,:]
-        lat_rho = romsRawFile.variables['lat_rho'][:,:] 
+        if selectRomsBox == True:
+            lon_rho     = romsRawFile.variables['lon_rho'][:,:]
+            lat_rho     = romsRawFile.variables['lat_rho'][:,:]
+            i0,i1,j0,j1 = bbox2ij(lon_rho,lat_rho,romsBox)
+            lon_rho     = romsRawFile.variables['lon_rho'][j0:j1, i0:i1]
+            lat_rho     = romsRawFile.variables['lat_rho'][j0:j1, i0:i1]  
+            romsNewFile.createDimension('eta_rho', len(lon_rho[:,0]))    
+            romsNewFile.createDimension('xi_rho', len(lon_rho[0,:]))           
+        else:            
+            lon_rho = romsRawFile.variables['lon_rho'][:,:]
+            lat_rho = romsRawFile.variables['lat_rho'][:,:] 
+            eta_rho = romsRawFile.dimensions['eta_rho']
+            xi_rho  = romsRawFile.dimensions['xi_rho']
+            romsNewFile.createDimension('eta_rho', len(eta_rho))    
+            romsNewFile.createDimension('xi_rho', len(xi_rho))   
 
-        romsNewFile.createDimension('eta_rho', len(eta_rho))    
-        romsNewFile.createDimension('xi_rho', len(xi_rho))
         romsNewFile.createDimension('s_rho', len(s_rho))
         romsNewFile.createDimension('s_w', len(s_w))
 
@@ -67,7 +98,7 @@ def romsVars(romsOriDir,romsNewDir):
         romsNewLon.long_name     = 'Longitude on RHO-points'
         romsNewLon.units         = 'degree_east'
         romsNewLon.standard_name = 'longitude'
-        romsNewLon[:, :]         = lon_rho
+        romsNewLon[:,:]         = lon_rho
 
         romsNewLat               = romsNewFile.createVariable('lat_rho', 'd', ('eta_rho', 'xi_rho'), fill_value=romsFillVal)
         romsNewLat.long_name     = 'Latitude on RHO-points'
@@ -78,28 +109,57 @@ def romsVars(romsOriDir,romsNewDir):
         # If ROMS potential temperature has been chosen.
         if romsTemp == True:
             print('Working on ROMS Temperature.')
-            romsRawVar            = romsRawFile.variables['temp'][:,:,:,:]
-            romsNewVar            = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
-            romsNewVar.long_name  = 'Potential Temperature'
-            romsNewVar.units      = 'Celsius'
-            romsNewVar._FillValue = '1.e+37f'
-            romsNewVar[:,:,:,:]   = romsRawVar
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['temp'][:,romsZLevel,j0:j1, i0:i1]  
+                romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['temp'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['temp'][:,:,j0:j1, i0:i1]
+                romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['temp'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
+            romsNewVar.long_name = 'Potential Temperature'
+            romsNewVar.units     = 'Celsius'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
             del romsRawVar, romsNewVar
 
         # If ROMS salinity has been chosen.
         if romsSalt == True:
             print('Working on ROMS Salinity.')
-            romsRawVar            = romsRawFile.variables['salt'][:,:,:,:]
-            romsNewVar            = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
-            romsNewVar.long_name  = 'Salinity'
-            romsNewVar._FillValue = '1.e+37f'
-            romsNewVar.units      = 'PSU'
-            romsNewVar[:,:,:,:]   = romsRawVar
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['salt'][:,romsZLevel,j0:j1, i0:i1]  
+                romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['salt'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['salt'][:,:,j0:j1, i0:i1]
+                romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['salt'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
+            romsNewVar.long_name = 'Salinity'
+            romsNewVar.units     = 'PSU'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
             del romsRawVar, romsNewVar
-        
+
         if romsZeta == True:
             print('Working on ROMS Zeta.')
-            romsRawVar            = romsRawFile.variables['zeta'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar        = romsRawFile.variables['zeta'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar        = romsRawFile.variables['zeta'][:,:,j0:j1, i0:i1]
             romsNewVar            = romsNewFile.createVariable('zeta', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name  = 'Free-surface'
             romsNewVar.units      = 'meter'
@@ -107,17 +167,57 @@ def romsVars(romsOriDir,romsNewDir):
             del romsRawVar, romsNewVar            
 
         if romsTKE == True:
-            print('Working on ROMS TKE.')
-            romsRawVar            = romsRawFile.variables['tke'][:,:,:]
-            romsNewVar            = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_w', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
-            romsNewVar.long_name  = 'Turbulent Kinectic Energy'
-            romsNewVar.units      = 'm2 s-2'
-            romsNewVar[:,:,:,:]   = romsRawVar
-            del romsRawVar, romsNewVar               
-          
+            print('Working on ROMS Turbulent Kinetic Energy.')
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['tke'][:,romsZLevel,j0:j1, i0:i1]  
+                romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['tke'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['tke'][:,:,j0:j1, i0:i1]
+                romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['tke'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
+            romsNewVar.long_name = 'Turbulent Kinectic Energy'
+            romsNewVar.units     = 'm2 s-2'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
+            del romsRawVar, romsNewVar         
+
+        if romsRho == True:
+            print('Working on ROMS Density Anomaly.')
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['rho'][:,romsZLevel,j0:j1, i0:i1]  
+                romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['rho'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['rho'][:,:,j0:j1, i0:i1]
+                romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['rho'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
+            romsNewVar.long_name = 'Density Anomaly'
+            romsNewVar.units     = 'kilogram meter-3'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
+            del romsRawVar, romsNewVar
+
         if romsLatent== True:
             print('Working on ROMS Latent Heat Flux.')
-            romsRawVar                = romsRawFile.variables['latent'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['latent'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['latent'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('latent', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Net Latent Heat Flux'
             romsNewVar.negative_value = "upward flux = cooling"
@@ -128,7 +228,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsSensible== True:
             print('Working on ROMS Sensible Heat Flux.')
-            romsRawVar                = romsRawFile.variables['sensible'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['sensible'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['sensible'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('sensible', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Net Sensible Heat Flux'
             romsNewVar.negative_value = "upward flux = cooling"
@@ -139,7 +242,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsLWRad== True:
             print('Working on ROMS Longwave Radiation Flux.')
-            romsRawVar                = romsRawFile.variables['lwrad'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['lwrad'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['lwrad'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('lwrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Net Longwave Radiation Flux'
             romsNewVar.units          = 'Watts m-2'
@@ -148,7 +254,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsSWRad== True:
             print('Working on ROMS Shortwave Radiation Flux.')
-            romsRawVar                = romsRawFile.variables['swrad'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['swrad'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['swrad'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('swrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Net Shortwave Radiation Flux'
             romsNewVar.units          = 'Watts m-2'
@@ -157,7 +266,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsEminusP== True:
             print('Working on ROMS Bulk Flux Surface Net Freshwater Flux.')
-            romsRawVar                = romsRawFile.variables['EminusP'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['EminusP'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['EminusP'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('EminusP', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Bulk Flux Surface Net Freshwater Flux'
             romsNewVar.negative_value = "Upward = Freshening (Net Precipitation)"
@@ -168,7 +280,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsEvaporation== True:
             print('Working on ROMS Evaporation Rate.')
-            romsRawVar                = romsRawFile.variables['evaporation'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['evaporation'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['evaporation'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('evaporation', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Bulk Flux Surface Net Freshwater Flux'
             romsNewVar.negative_value = "Downward = Freshening (Condensation)"
@@ -179,8 +294,11 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsUwind== True:
             print('Working on ROMS U-wind Component.')
-            romsRawVar                = romsRawFile.variables['Uwind'][:,:,:]
-            romsNewVar                = romsNewFile.createVariable('uwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['Uwind'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['Uwind'][:,:,j0:j1, i0:i1]
+            romsNewVar                = romsNewFile.createVariable('Uwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Surface U-wind Component'
             romsNewVar.units          = 'm s-1'
             romsNewVar[:,:,:]         = romsRawVar
@@ -188,8 +306,11 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsVwind== True:
             print('Working on ROMS V-wind ;component.')
-            romsRawVar                = romsRawFile.variables['Vwind'][:,:,:]
-            romsNewVar                = romsNewFile.createVariable('vwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['Vwind'][:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['Vwind'][:,:,j0:j1, i0:i1]
+            romsNewVar                = romsNewFile.createVariable('Vwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Surface V-wind Component'
             romsNewVar.units          = 'm s-1'
             romsNewVar[:,:,:]         = romsRawVar
@@ -197,7 +318,10 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsW== True:
             print('Working on ROMS Vertical Momentum Component.')
-            romsRawVar                = romsRawFile.variables['w'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['w'][:,:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['w'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('w', 'f', ('ocean_time', 's_w','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'Vertical Momentum Component'
             romsNewVar.units          = 'm s-1'
@@ -206,13 +330,15 @@ def romsVars(romsOriDir,romsNewDir):
 
         if romsOmega== True:
             print('Working on ROMS S-coordinate Vertical Momentum Component.')
-            romsRawVar                = romsRawFile.variables['omega'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar            = romsRawFile.variables['omega'][:,:,j0:j1, i0:i1]  
+            else:              
+                romsRawVar            = romsRawFile.variables['omega'][:,:,j0:j1, i0:i1]
             romsNewVar                = romsNewFile.createVariable('omega', 'f', ('ocean_time', 's_w', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name      = 'S-coordinate Vertical Momentum Component'
             romsNewVar.units          = 'm s-1'
             romsNewVar[:,:,:,:]       = romsRawVar
             del romsRawVar, romsNewVar     
-
 
     if romsMassPoints == False:
         print('No variables on mass-points has been chosen. Continuing.')
@@ -220,23 +346,37 @@ def romsVars(romsOriDir,romsNewDir):
 
     # If a variable on U and/or V point has been chosen.
     if romsUVPoints == True:
-        eta_u = romsRawFile.dimensions['eta_u']
-        xi_u  = romsRawFile.dimensions['xi_u']
-        lon_u = romsRawFile.variables['lon_u'][:,:]
-        lat_u = romsRawFile.variables['lat_u'][:,:] 
+        if selectRomsBox == True:
+            lon_u = romsRawFile.variables['lon_u'][:, :]
+            lat_u = romsRawFile.variables['lat_u'][:, :]
+            i0_u,i1_u,j0_u,j1_u = bbox2ij(lon_u,lat_u,romsBox)
+            lon_u = romsRawFile.variables['lon_u'][j0_u:j1_u, i0_u:i1_u]
+            lat_u = romsRawFile.variables['lat_u'][j0_u:j1_u, i0_u:i1_u]
+            romsNewFile.createDimension('eta_u', len(lon_u[:,0]))    
+            romsNewFile.createDimension('xi_u', len(lon_u[0,:])) 
 
-        eta_v = romsRawFile.dimensions['eta_v']
-        xi_v  = romsRawFile.dimensions['xi_v']
-        lon_v = romsRawFile.variables['lon_v'][:,:]
-        lat_v = romsRawFile.variables['lat_v'][:,:] 
+            lon_v = romsRawFile.variables['lon_v'][:, :]
+            lat_v = romsRawFile.variables['lat_v'][:, :]
+            i0_v,i1_v,j0_v,j1_v = bbox2ij(lon_v,lat_v,romsBox)
+            lon_v = romsRawFile.variables['lon_v'][j0_v:j1_v, i0_v:i1_v]
+            lat_v = romsRawFile.variables['lat_v'][j0_v:j1_v, i0_v:i1_v]
+            romsNewFile.createDimension('eta_v', len(lon_v[:,0]))    
+            romsNewFile.createDimension('xi_v', len(lon_v[0,:])) 
 
-        s_rho = romsRawFile.dimensions['s_rho']
-
-        romsNewFile.createDimension('eta_u', len(eta_u))    
-        romsNewFile.createDimension('xi_u', len(xi_u))
-
-        romsNewFile.createDimension('eta_v', len(eta_v))    
-        romsNewFile.createDimension('xi_v', len(xi_v))
+        else:
+            eta_u = romsRawFile.dimensions['eta_u']
+            xi_u  = romsRawFile.dimensions['xi_u']
+            lon_u = romsRawFile.variables['lon_u'][:,:]
+            lat_u = romsRawFile.variables['lat_u'][:,:] 
+            romsNewFile.createDimension('eta_u', len(eta_u))    
+            romsNewFile.createDimension('xi_u', len(xi_u)) 
+         
+            eta_v = romsRawFile.dimensions['eta_v']
+            xi_v  = romsRawFile.dimensions['xi_v']
+            lon_v = romsRawFile.variables['lon_v'][:,:]
+            lat_v = romsRawFile.variables['lat_v'][:,:] 
+            romsNewFile.createDimension('eta_v', len(eta_v))    
+            romsNewFile.createDimension('xi_v', len(xi_v)) 
 
         if romsMassPoints == True:
             pass
@@ -269,39 +409,73 @@ def romsVars(romsOriDir,romsNewDir):
 
         # If ROMS V-velocity has been selected.
         if romsV == True:
-            print('Working on ROMS V-velocity')
-            romsRawVar           = romsRawFile.variables['v'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), zlib=True, fill_value=romsFillVal)
+            print('Working on ROMS V-velocity.')
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['v'][:,romsZLevel,j0_v:j1_v, i0_v:i1_v] 
+                romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['v'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['v'][:,:,j0_v:j1_v, i0_v:i1_v] 
+                romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['v'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
             romsNewVar.long_name = 'V-Velocity'
-            romsNewVar.units     = 'm/s'
-            romsNewVar[:,:,:,:]  = romsRawVar
-            del romsRawVar, romsNewVar
+            romsNewVar.units     = 'm s'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
+            del romsRawVar, romsNewVar    
 
         if romsU == True:
             print('Working on ROMS U-Velocity.')
-            romsRawVar           = romsRawFile.variables['u'][:,:,:,:]
-            romsNewVar           = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['u'][:,romsZLevel,j0_v:j1_v, i0_v:i1_v] 
+                romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['v'][:,:,:,:]
+                romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == True and selectRomsLevel == False:           
+                romsRawVar = romsRawFile.variables['u'][:,:,j0_v:j1_v, i0_v:i1_v] 
+                romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+            if selectRomsBox == False and selectRomsLevel == True:
+                romsRawVar = romsRawFile.variables['u'][:,romsZLevel,:,:]  
+                romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho','eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
+           
             romsNewVar.long_name = 'U-Velocity'
-            romsNewVar.units     = 'm/s'
-            romsNewVar[:,:,:,:]  = romsRawVar
-            del romsRawVar, romsNewVar
+            romsNewVar.units     = 'm s'
+            if selectRomsLevel == False:
+                romsNewVar[:,:,:,:] = romsRawVar
+            if selectRomsLevel == True:
+                romsNewVar[:,:,:] = romsRawVar                
+            del romsRawVar, romsNewVar    
 
         if romsUbar == True:
             print('Working on ROMS Ubar.')
-            romsRawVar           = romsRawFile.variables['ubar'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar       = romsRawFile.variables['ubar'][:,j0_u:j1_u, i0_u:i1_u]    
+            else:              
+                romsRawVar       = romsRawFile.variables['ubar'][:,:,:,:]
             romsNewVar           = romsNewFile.createVariable('ubar', 'f', ('ocean_time', 'eta_u', 'xi_u'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Vertically Integrated U-momentum Component'
             romsNewVar.units     = 'm s-1'
-            romsNewVar[:,:,:]   = romsRawVar
+            romsNewVar[:,:,:]  = romsRawVar
             del romsRawVar, romsNewVar
 
         if romsVbar == True:
             print('Working on ROMS Vbar.')
-            romsRawVar           = romsRawFile.variables['vbar'][:,:,:]
+            if selectRomsBox == True:
+                romsRawVar       = romsRawFile.variables['vbar'][:,j0_v:j1_v, i0_v:i1_v]    
+            else:              
+                romsRawVar       = romsRawFile.variables['vbar'][:,:,:,:]
             romsNewVar           = romsNewFile.createVariable('vbar', 'f', ('ocean_time', 'eta_v', 'xi_v'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Vertically Integrated V-momentum Component'
             romsNewVar.units     = 'm s-1'
-            romsNewVar[:,:,:]   = romsRawVar
+            romsNewVar[:,:,:]  = romsRawVar
             del romsRawVar, romsNewVar
     if romsUVPoints == False:
         print('No variable on U or V-points has been chosen. Continuing.')
