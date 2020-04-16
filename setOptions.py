@@ -8,7 +8,9 @@ Use this file to select what do you want Ekman Toolbox to do.
 """
 
 ####### Project section.
+useDask              = True
 projectName          = 'SC_2008'
+projectAuthor        = 'Ueslei Adriano Sutil'
 
 ####### ROMS section. 
 romsOriginalFilename = 'ocean_his.nc'

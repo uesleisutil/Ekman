@@ -1,8 +1,8 @@
 """
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
-Last modified:  12 Apr 2019
-Version:        1.7
+Last modified:  13 Apr 2019
+Version:        1.8
 
 This file generates a new ROMS output file from scratch.
 It is netCDF4 CF-compliant.
@@ -57,8 +57,8 @@ def romsVars(romsOriDir,romsNewDir):
     """
     # Original output file.
     romsRawFile             = Dataset(romsOriDir, mode='r')
-    romsNewFile             = Dataset(romsNewDir, 'w', format='NETCDF4')
-    romsNewFile.title       = "ROMS output file"
+    romsNewFile             = Dataset(romsNewDir, 'w', format='NETCDF4')   
+    romsNewFile.title       = "ROMS output file made by "+projectAuthor
     romsNewFile.description = "Created with Ekman Toolbox at " + time.ctime(time.time())
     romsNewFile.link        = "https://github.com/uesleisutil/Ekman"
 
@@ -203,7 +203,7 @@ def romsVars(romsOriDir,romsNewDir):
             if selectRomsBox == True:
                 romsRawVar        = romsRawFile.variables['zeta'][:,j0:j1, i0:i1]  
             else:              
-                romsRawVar        = romsRawFile.variables['zeta'][:,:,:,:]
+                romsRawVar        = romsRawFile.variables['zeta'][:,:,:]
             romsNewVar            = romsNewFile.createVariable('zeta', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name  = 'Free-surface'
             romsNewVar.units      = 'meter'
@@ -457,7 +457,7 @@ def romsVars(romsOriDir,romsNewDir):
             if selectRomsBox == True:
                 romsRawVar       = romsRawFile.variables['ubar'][:,j0_u:j1_u, i0_u:i1_u]    
             else:              
-                romsRawVar       = romsRawFile.variables['ubar'][:,:,:,:]
+                romsRawVar       = romsRawFile.variables['ubar'][:,:,:]
             romsNewVar           = romsNewFile.createVariable('ubar', 'f', ('ocean_time', 'eta_u', 'xi_u'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Vertically Integrated U-momentum Component'
             romsNewVar.units     = 'm s-1'
@@ -469,7 +469,7 @@ def romsVars(romsOriDir,romsNewDir):
             if selectRomsBox == True:
                 romsRawVar       = romsRawFile.variables['vbar'][:,j0_v:j1_v, i0_v:i1_v]    
             else:              
-                romsRawVar       = romsRawFile.variables['vbar'][:,:,:,:]
+                romsRawVar       = romsRawFile.variables['vbar'][:,:,:]
             romsNewVar           = romsNewFile.createVariable('vbar', 'f', ('ocean_time', 'eta_v', 'xi_v'), zlib=True, fill_value=romsFillVal)
             romsNewVar.long_name = 'Vertically Integrated V-momentum Component'
             romsNewVar.units     = 'm s-1'
