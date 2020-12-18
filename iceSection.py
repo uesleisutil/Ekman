@@ -1,8 +1,8 @@
 """
-Author:         Ueslei Adriano Sutil
-Created:        12 Apr 2019
-Last modified:  12 Apr 2019
-Version:        1.1
+Author: Ueslei Adriano Sutil
+Created: 12 Apr 2019
+Last modified: 12 Apr 2019
+Version: 1.1
 
 This file generates a new Sea Ice output file from scratch.
 It is netCDF4 CF-compliant.
