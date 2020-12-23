@@ -1,5 +1,7 @@
 # Ekman
+<p align="center">
 ![Ekman](logo.svg)
+</p>
 
 Ekman is an open-source and user-friendly Python package to postprocess, data analyze and visualize  Weather Research Forecast (WRF),
 Regional Ocean Modeling System (ROMS), Wave-Watch 3 (WW3) and Budgell's Sea Ice outputs files using Numpy and Dask.
