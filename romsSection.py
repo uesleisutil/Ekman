@@ -1,7 +1,7 @@
 """
 Author:         Ueslei Adriano Sutil
-Created:        08 Apr 2019
-Last modified:  03 Jan 2020
+Created:        08 Apr 2020
+Last modified:  03 Jan 2021
 Version:        2.0
 
 This file generates a new ROMS output file from scratch.
@@ -62,13 +62,6 @@ def romsVars(romsOriDir,romsNewDir):
     romsNewFile.description = "Created with Ekman Toolbox in " + time.ctime(time.time())
     romsNewFile.link        = "https://github.com/uesleisutil/Ekman"
 
-    # New ROMS output file.
-    romsNewFile.createDimension('ocean_time', 0)
-    roms_time              = romsRawFile.variables['ocean_time']
-    romsNewOTdim           = romsNewFile.createVariable('ocean_time', dtype('double').char, ('ocean_time'))
-    romsNewOTdim.long_name = roms_time.units
-    romsNewOTdim.units     = roms_time.units
-
     # If a variable on mass point has been chosen.
     if romsMassPoints == True:
         s_rho   = romsRawFile.dimensions['s_rho']
@@ -111,17 +104,19 @@ def romsVars(romsOriDir,romsNewDir):
 
         # Define vertical levels and time-steps. 
         levels = len(romsRawFile.variables['s_rho'][:]) 
-        if selectRomsLevel and len(romsLevel) == 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
-            print("One vertical level selected: Working on level "+str(romsLevel)+".")
-        if selectRomsLevel and len(romsLevel) > 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
+        if selectRomsLevel == True and len(romsLevel) == 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
+            print("One vertical level selected: Working on vertical level "+str(romsLevel)+".")
+        if selectRomsLevel == True and len(romsLevel) > 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
             print("Multiple vertical levels selected: Working from level "+str(romsLevel[0])+" to "+str(romsLevel[-1])+".")
         if selectRomsLevel == False and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
             print("No selected vertical levels specified: Using entire vertical level from input file.")
         if selectRomsTimeStep == True:
             ntimes = romsTimeStep
-            print("Time-step selected: Working from time-step "+str(np.argmin(ntimes))+" to "+str(np.argmax(ntimes))+".")
+            romsNewFile.createDimension('ocean_time', 0)
+            print("Time-step selected: Working from time-step "+str(ntimes[0])+" to "+str(ntimes[-1])+".")
         else:
             ntimes = romsRawFile.variables['ocean_time'][:]
+            romsNewFile.createDimension('ocean_time', 0)
             print("No time-step selected. Working with entire time-step.")
 
         # If ROMS Potential Temperature has been chosen.
@@ -129,11 +124,11 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS Potential Temperature.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['temp'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Potential Temperature'
@@ -146,61 +141,61 @@ def romsVars(romsOriDir,romsNewDir):
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['temp'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Potential Temperature'
                             romsNewVar.units     = 'Degree Celsius'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['temp'][i,romsStart:romsStop,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['temp'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Potential Temperature'
                         romsNewVar.units     = 'Degree Celsius'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['temp'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['temp'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Potential Temperature'
                         romsNewVar.units     = 'Degree Celsius'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['temp'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['temp'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Potential Temperature'
                             romsNewVar.units     = 'Degree Celsius'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['temp'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['temp'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('temp', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Potential Temperature'
                             romsNewVar.units     = 'Degree Celsius'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['temp'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -210,78 +205,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS Salinity.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['salt'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Salinity'
                             romsNewVar.units     = 'PSU'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['salt'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['salt'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Salinity'
                             romsNewVar.units     = 'PSU'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['salt'][i,romsStart:romsStop,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['salt'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Salinity'
                         romsNewVar.units     = 'PSU'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['salt'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['salt'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Salinity'
                         romsNewVar.units     = 'PSU'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['salt'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['salt'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Salinity'
                             romsNewVar.units     = 'PSU'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['salt'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['salt'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('salt', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Salinity'
                             romsNewVar.units     = 'PSU'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['salt'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['salt'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()    
@@ -291,78 +286,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS Turbulent Kinectic Energy.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['tke'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Turbulent Kinectic Energy'
                             romsNewVar.units     = 'm2 s-2'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['tke'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['tke'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Turbulent Kinectic Energy'
                             romsNewVar.units     = 'm2 s-2'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['tke'][i,romsStart:romsStop,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['tke'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Turbulent Kinectic Energy'
                         romsNewVar.units     = 'm2 s-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['tke'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['tke'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Turbulent Kinectic Energy'
                         romsNewVar.units     = 'm2 s-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['tke'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['tke'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Turbulent Kinectic Energy'
                             romsNewVar.units     = 'm2 s-2'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['tke'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['tke'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('tke', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Turbulent Kinectic Energy'
                             romsNewVar.units     = 'm2 s-2'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['tke'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['tke'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish() 
@@ -372,78 +367,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS Density Anomaly.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['rho'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Density Anomaly'
                             romsNewVar.units     = 'kilogram meter-3'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['rho'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['rho'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Density Anomaly'
                             romsNewVar.units     = 'kilogram meter-3'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['rho'][i,romsStart:romsStop,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['rho'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Density Anomaly'
                         romsNewVar.units     = 'kilogram meter-3'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['rho'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['rho'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Density Anomaly'
                         romsNewVar.units     = 'kilogram meter-3'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['rho'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['rho'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Density Anomaly'
                             romsNewVar.units     = 'kilogram meter-3'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['rho'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['rho'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('rho', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Density Anomaly'
                             romsNewVar.units     = 'kilogram meter-3'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['rho'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['rho'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish() 
@@ -453,65 +448,65 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS Vertical Momentum Component.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['w'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('w', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['w'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['w'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('w', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['w'][i,romsStart:romsStop,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['w'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('w', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertical Momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['w'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['w'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('w', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertical Momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['w'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['w'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('w', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['w'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
@@ -524,7 +519,7 @@ def romsVars(romsOriDir,romsNewDir):
                             romsNewVar.units     = 'm s-1'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['w'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['w'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -534,24 +529,24 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS S-coordinate Vertical Momentum Component.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['omega'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['omega'][i,romsLevel,j0:j1, i0:i1]  
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsLevel,j0:j1, i0:i1]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['omega'][i,romsStart:romsStop,j0:j1, i0:i1] 
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsStart:romsStop,j0:j1, i0:i1] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
@@ -562,50 +557,50 @@ def romsVars(romsOriDir,romsNewDir):
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['omega'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['omega'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['omega'][i,:,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,:,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['omega'][i,:,j0:j1, i0:i1] 
+                        romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,:,j0:j1, i0:i1] 
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['omega'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                             romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['omega'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['omega'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_rho[:,0]), len(lon_rho[0,:])])
                             romsNewVar = romsNewFile.createVariable('omega', 'f', ('ocean_time', 's_rho', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'S-coordinate Vertical Momentum Component'
                             romsNewVar.units     = 'm s-1'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['omega'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['omega'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -614,28 +609,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsZeta == True:
             print('Working on ROMS Free-surface.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['zeta'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['zeta'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('zeta', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Free-surface'
                         romsNewVar.units     = 'meters'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['zeta'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['zeta'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['zeta'][i,:,:]
+                        romsRawVar = romsRawFile.variables['zeta'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('zeta', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Free-surface'
                         romsNewVar.units     = 'meters'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['zeta'][i,:,:]
+                        romsRawVar = romsRawFile.variables['zeta'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                  
                 bar.next()
             bar.finish()  
@@ -644,28 +639,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsLatent == True:
             print('Working on ROMS Latent Heat Flux.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['latent'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['latent'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('latent', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Latent Heat Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['latent'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['latent'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['latent'][i,:,:]
+                        romsRawVar = romsRawFile.variables['latent'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('latent', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Latent Heat Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['latent'][i,:,:]
+                        romsRawVar = romsRawFile.variables['latent'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                
                 bar.next()
             bar.finish() 
@@ -674,10 +669,10 @@ def romsVars(romsOriDir,romsNewDir):
         if romsSensible == True:
             print('Working on ROMS Sensible Heat Flux.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['sensible'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['sensible'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('sensible', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Sensible Heat Flux'
@@ -686,11 +681,11 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Fownward flux = Heating"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['sensible'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['sensible'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['sensible'][i,:,:]
+                        romsRawVar = romsRawFile.variables['sensible'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('sensible', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Sensible Heat Flux'
@@ -699,7 +694,7 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Downward flux = Heating"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['sensible'][i,:,:]
+                        romsRawVar = romsRawFile.variables['sensible'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                  
                 bar.next()
             bar.finish() 
@@ -708,28 +703,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsLWRad == True:
             print('Working on ROMS Net Longwave Radiation Flux.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['lwrad'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['lwrad'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('lwrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Net Longwave Radiation Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['lwrad'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['lwrad'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['lwrad'][i,:,:]
+                        romsRawVar = romsRawFile.variables['lwrad'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('lwrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Net Longwave Radiation Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['lwrad'][i,:,:]
+                        romsRawVar = romsRawFile.variables['lwrad'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                   
                 bar.next()
             bar.finish() 
@@ -738,28 +733,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsSWRad == True:
             print('Working on ROMS Net Shortwave Radiation Flux.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['swrad'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['swrad'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('swrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Net Shortwave Radiation Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['swrad'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['swrad'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['swrad'][i,:,:]
+                        romsRawVar = romsRawFile.variables['swrad'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('swrad', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Net Shortwave Radiation Flux'
                         romsNewVar.units     = 'W m-2'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['swrad'][i,:,:]
+                        romsRawVar = romsRawFile.variables['swrad'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -768,10 +763,10 @@ def romsVars(romsOriDir,romsNewDir):
         if romsEminusP == True:
             print('Working on ROMS Bulk Flux Surface Net Freshwater Flux.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['EminusP'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['EminusP'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('EminusP', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Bulk Flux Surface Net Freshwater Flux'
@@ -780,11 +775,11 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Downward = Salting (Net Evaporation)"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['EminusP'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['EminusP'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['EminusP'][i,:,:]
+                        romsRawVar = romsRawFile.variables['EminusP'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('EminusP', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Bulk Flux Surface Net Freshwater Flux'
@@ -793,7 +788,7 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Downward = Salting (Net Evaporation)"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['EminusP'][i,:,:]
+                        romsRawVar = romsRawFile.variables['EminusP'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -802,10 +797,10 @@ def romsVars(romsOriDir,romsNewDir):
         if romsEvaporation == True:
             print('Working on ROMS Evaporation Rate.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['evaporation'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['evaporation'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('evaporation', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Evaporation Rate'
@@ -814,11 +809,11 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Upward = Salting (Evaporation)"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['evaporation'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['evaporation'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['evaporation'][i,:,:]
+                        romsRawVar = romsRawFile.variables['evaporation'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('evaporation', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Evaporation Rate'
@@ -827,7 +822,7 @@ def romsVars(romsOriDir,romsNewDir):
                         romsNewVar.positive_value = "Upward = Salting (Evaporation)"
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['evaporation'][i,:,:]
+                        romsRawVar = romsRawFile.variables['evaporation'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -836,28 +831,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsUwind == True:
             print('Working on ROMS U-wind Component.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['Uwind'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['Uwind'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('Uwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Surface U-wind Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['Uwind'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['Uwind'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['Uwind'][i,:,:]
+                        romsRawVar = romsRawFile.variables['Uwind'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('Uwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Surface U-wind Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['Uwind'][i,:,:]
+                        romsRawVar = romsRawFile.variables['Uwind'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -866,28 +861,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsVwind == True:
             print('Working on ROMS V-wind Component.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['Vwind'][i,j0:j1, i0:i1]
+                        romsRawVar = romsRawFile.variables['Vwind'][ntimes[0]+i,j0:j1, i0:i1]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('Vwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Surface V-wind Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['Vwind'][i,j0:j1,i0:i1]
+                        romsRawVar = romsRawFile.variables['Vwind'][ntimes[0]+i,j0:j1,i0:i1]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['Vwind'][i,:,:]
+                        romsRawVar = romsRawFile.variables['Vwind'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
                         romsNewVar = romsNewFile.createVariable('Vwind', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Surface V-wind Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['Vwind'][i,:,:]
+                        romsRawVar = romsRawFile.variables['Vwind'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -981,78 +976,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS V-wind Component.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,j0_v:j1_v, i0_v:i1_v]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,j0_v:j1_v, i0_v:i1_v]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,j0_v:j1_v, i0_v:i1_v]   
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,j0_v:j1_v, i0_v:i1_v]   
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]  
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_v[:,0]), len(lon_v[0,:])])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]   
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]   
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['v'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'V-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['v'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['v'][i,:,j0_v:j1_v, i0_v:i1_v]  
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,j0_v:j1_v, i0_v:i1_v]  
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'V-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['v'][i,:,j0_v:j1_v, i0_v:i1_v]  
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,j0_v:j1_v, i0_v:i1_v]  
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_v[:,0]), len(lon_v[0,:])])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -1063,78 +1058,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS V-wind Component.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['u'][i,romsLevel,j0_u:j1_u, i0_u:i1_u]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsLevel,j0_u:j1_u, i0_u:i1_u]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_u), len(lon_u)])
                             romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['u'][i,romsLevel,j0_u:j1_u, i0_u:i1_u]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsLevel,j0_u:j1_u, i0_u:i1_u]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['u'][i,romsStart:romsStop,j0_u:j1_u, i0_u:i1_u]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsStart:romsStop,j0_u:j1_u, i0_u:i1_u]  
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_u[:,0]), len(lon_u[0,:])])
                             romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['u'][i,romsStart:romsStop,j0_u:j1_u, i0_u:i1_u]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsStart:romsStop,j0_u:j1_u, i0_u:i1_u]  
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['u'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_u), len(lon_u)])
                         romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'V-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['u'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['u'][i,:,j0_u:j1_u, i0_u:i1_u]  
+                        romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,:,j0_u:j1_u, i0_u:i1_u]  
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_u), len(lon_u)])
                         romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'V-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['u'][i,:,j0_u:j1_u, i0_u:i1_u]  
+                        romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,:,j0_u:j1_u, i0_u:i1_u]  
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['u'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_u), len(lon_u)])
                             romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['u'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['u'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_u[:,0]), len(lon_u[0,:])])
                             romsNewVar = romsNewFile.createVariable('u', 'f', ('ocean_time', 's_rho', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'V-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['u'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['u'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -1144,78 +1139,78 @@ def romsVars(romsOriDir,romsNewDir):
             print('Working on ROMS U-wind Component.')
             bar = IncrementalBar(max=len(ntimes))
             
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True and selectRomsLevel == True:
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,j0_v:j1_v, i0_v:i1_v]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,j0_v:j1_v, i0_v:i1_v]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'U-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,j0_v:j1_v, i0_v:i1_v]   
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,j0_v:j1_v, i0_v:i1_v]   
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]  
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_v[:,0]), len(lon_v[0,:])])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'U-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]   
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,j0_v:j1_v, i0_v:i1_v]   
                             romsNewVar[i,:,:,:] = romsRawVar                              
                 elif selectRomsBox == False and selectRomsLevel == False:    
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['v'][i,:,:,:]
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,:,:]
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'U-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['v'][i,:,:,:] 
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,:,:] 
                         romsNewVar[i,:,:] = romsRawVar                                                                                
                 elif selectRomsBox == True and selectRomsLevel == False:  
                     if i == np.argmin(ntimes):             
-                        romsRawVar = romsRawFile.variables['v'][i,:,j0_v:j1_v, i0_v:i1_v]  
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,j0_v:j1_v, i0_v:i1_v]  
                         romsNewVar = np.zeros([len(ntimes),levels,len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'U-wind Component'
                         romsNewVar.units     = 'm s'
                         romsNewVar[i,:,:] = romsRawVar  
                     else: 
-                        romsRawVar = romsRawFile.variables['v'][i,:,j0_v:j1_v, i0_v:i1_v]  
+                        romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,:,j0_v:j1_v, i0_v:i1_v]  
                         romsNewVar[i,:,:] = romsRawVar  
                 elif selectRomsBox == False and selectRomsLevel == True: 
                     if len(romsLevel) == 1:
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'U-wind Component'
                             romsNewVar.units     = 'm s'
                             romsNewVar[i,:,:] = romsRawVar  
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsLevel,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsLevel,:, :]  
                             romsNewVar[i,:,:] = romsRawVar                                                             
                     else:
                         romsStart  = slice(min(romsLevel),max(romsLevel)+1).start
                         romsStop   = slice(min(romsLevel),max(romsLevel)+1).stop
                         if i == np.argmin(ntimes):
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,:, :] 
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,:, :] 
                             romsNewVar = np.zeros([len(ntimes),len(romsLevel),len(lat_v[:,0]), len(lon_v[0,:])])
                             romsNewVar = romsNewFile.createVariable('v', 'f', ('ocean_time', 's_rho', 'eta_v', 'xi_v'), fill_value=romsFillVal)
                             romsNewVar.long_name = 'U-wind Component'
                             romsNewVar.units     = 'm s'                     
                             romsNewVar[i,:,:,:] = romsRawVar
                         else: 
-                            romsRawVar = romsRawFile.variables['v'][i,romsStart:romsStop,:, :]  
+                            romsRawVar = romsRawFile.variables['v'][ntimes[0]+i,romsStart:romsStop,:, :]  
                             romsNewVar[i,:,:,:] = romsRawVar  
                 bar.next()
             bar.finish()  
@@ -1224,28 +1219,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsUbar == True:
             print('Working on ROMS Vertically Integrated U-momentum Component.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['ubar'][i,j0_u:j1_u, i0_u:i1_u]
+                        romsRawVar = romsRawFile.variables['ubar'][ntimes[0]+i,j0_u:j1_u, i0_u:i1_u]
                         romsNewVar = np.zeros([len(ntimes),len(lat_u), len(lon_u)])
                         romsNewVar = romsNewFile.createVariable('ubar', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertically Integrated U-momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['ubar'][i,j0_u:j1_u, i0_u:i1_u]
+                        romsRawVar = romsRawFile.variables['ubar'][ntimes[0]+i,j0_u:j1_u, i0_u:i1_u]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['ubar'][i,:,:]
+                        romsRawVar = romsRawFile.variables['ubar'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_u), len(lon_u)])
                         romsNewVar = romsNewFile.createVariable('ubar', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertically Integrated U-momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['ubar'][i,:,:]
+                        romsRawVar = romsRawFile.variables['ubar'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 
@@ -1254,28 +1249,28 @@ def romsVars(romsOriDir,romsNewDir):
         if romsVbar == True:
             print('Working on ROMS Vertically Integrated V-momentum Component.')
             bar = IncrementalBar(max=len(ntimes))
-            for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            for i in range(np.argmin(ntimes),len(ntimes),1):
                 if selectRomsBox == True:
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['vbar'][i,j0_v:j1_v, i0_v:i1_v]
+                        romsRawVar = romsRawFile.variables['vbar'][ntimes[0]+i,j0_v:j1_v, i0_v:i1_v]
                         romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('vbar', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertically Integrated U-momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['vbar'][i,j0_v:j1_v, i0_v:i1_v]
+                        romsRawVar = romsRawFile.variables['vbar'][ntimes[0]+i,j0_v:j1_v, i0_v:i1_v]
                         romsNewVar[i,:,:] = romsRawVar                         
                 else: 
                     if i == np.argmin(ntimes):
-                        romsRawVar = romsRawFile.variables['vbar'][i,:,:]
+                        romsRawVar = romsRawFile.variables['vbar'][ntimes[0]+i,:,:]
                         romsNewVar = np.zeros([len(ntimes),len(lat_v), len(lon_v)])
                         romsNewVar = romsNewFile.createVariable('vbar', 'f', ('ocean_time', 'eta_u', 'xi_u'), fill_value=romsFillVal)
                         romsNewVar.long_name = 'Vertically Integrated V-momentum Component'
                         romsNewVar.units     = 'm s-1'
                         romsNewVar[i,:,:] = romsRawVar  
                     else:
-                        romsRawVar = romsRawFile.variables['vbar'][i,:,:]
+                        romsRawVar = romsRawFile.variables['vbar'][ntimes[0]+i,:,:]
                         romsNewVar[i,:,:] = romsRawVar                     
                 bar.next()
             bar.finish() 

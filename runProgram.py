@@ -3,14 +3,13 @@ File name:      runScript.py
 Author:         Ueslei Adriano Sutil
 Email:          uesleisutil1@gmail.com
 Created:        07 Apr 2020
-Last modified:  28 Dec 2020
+Last modified:  03 Jan 2021
 Version:        1.2
 Python version: 3.3+
 
 TODO:
-      - WW3: Comming soon.
-      - Select more files, not just one.
-
+    - Fix WRF
+    - Insert WW3
 """
 
 # Import libraries.
