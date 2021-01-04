@@ -1,22 +1,22 @@
 """
 Author: Ueslei Adriano Sutil
 Created: 12 Apr 2019
-Last modified: 12 Apr 2019
-Version: 1.1
+Last modified: 03 Jan 2020
+Version: 2.0
 
-This file generates a new Sea Ice output file from scratch.
+This file generates a new Budgell Sea Ice output file from scratch.
 It is netCDF4 CF-compliant.
 
 WARNING: Do not change anything in this file.
 """
 
-from   netCDF4    import Dataset
-from   setOptions import *
-from   numpy      import dtype
-from   matplotlib import path 
-import numpy      as np
+from   netCDF4      import Dataset
+from   setOptions   import *
+from   numpy        import dtype
+from   matplotlib   import path 
+from   progress.bar import IncrementalBar
+import numpy        as     np
 import time
-import netCDF4
 
 iceFillVal = 1.e+37
 
@@ -51,7 +51,7 @@ def iceVars(iceOriDir,iceNewDir):
     iceRawFile             = Dataset(iceOriDir, mode='r')
     iceNewFile             = Dataset(iceNewDir, 'w', format='NETCDF4')
     iceNewFile.title       = "Budgell Sea-ice output file"
-    iceNewFile.description = "Created with Ekman Toolbox at " + time.ctime(time.time())
+    iceNewFile.description = "Created with Ekman Toolbox in " + time.ctime(time.time())
     iceNewFile.link        = "https://github.com/uesleisutil/Ekman"
 
     # New Sea-ice output file.
@@ -71,8 +71,10 @@ def iceVars(iceOriDir,iceNewDir):
         lon_rho     = iceRawFile.variables['lon_rho'][j0:j1, i0:i1]
         lat_rho     = iceRawFile.variables['lat_rho'][j0:j1, i0:i1]  
         iceNewFile.createDimension('eta_rho', len(lon_rho[:,0]))    
-        iceNewFile.createDimension('xi_rho', len(lon_rho[0,:]))           
-    else:            
+        iceNewFile.createDimension('xi_rho', len(lon_rho[0,:]))    
+        print("Bounding box selected. New domain limits are: Longitude "+str(iceBox[0])+"/"+str(iceBox[1])+" and Latitude "+str(iceBox[2])+"/"+str(iceBox[3])+".")       
+    else: 
+        print("No bounding box selected: Using XLAT and XLONG variables from input file.")           
         lon_rho = iceNewFile.variables['lon_rho'][:,:]
         lat_rho = iceNewFile.variables['lat_rho'][:,:] 
         eta_rho = iceNewFile.dimensions['eta_rho']
@@ -80,7 +82,7 @@ def iceVars(iceOriDir,iceNewDir):
         iceNewFile.createDimension('eta_rho', len(eta_rho))    
         iceNewFile.createDimension('xi_rho', len(xi_rho))  
     
-    iceNewLon               = iceNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
+    iceNewLon               = iceNewFile.createVariable('lon_rho', 'd', ('eta_rho', 'xi_rho'), fill_value=iceFillVal)
     iceNewLon.long_name     = 'Longitude on RHO-points'
     iceNewLon.units         = 'degree_east'
     iceNewLon.standard_name = 'longitude'
@@ -92,113 +94,277 @@ def iceVars(iceOriDir,iceNewDir):
     iceNewLat.standard_name = 'latitude'
     iceNewLat[:, :]         = lat_rho    
 
+    if selectRomsTimeStep == True:
+        ntimes = iceTimeStep
+        print("Time-step selected: Working from time-step "+str(np.argmin(ntimes))+" to "+str(np.argmax(ntimes))+".")
+    else:
+        ntimes = iceRawFile.variables['ocean_time'][:]
+        print("No time-step selected. Working with entire time-step.")
+
+    # If Budgell Sea-Ice has been chosen.                                               
     if iceAge == True:
-        print('Working on Sea-ice Age.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['ageice'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['ageice'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('ageice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Sea-ice age'
-        iceNewVar.units          = 's'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-Ice Age.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['ageice'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('ageice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-ice age'
+                    iceNewVar.units     = 'S'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['ageice'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['ageice'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('ageice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-ice age'
+                    iceNewVar.units     = 'S'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['ageice'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Sea-Ice Fraction of Cell Covered by Ice has been chosen.                                               
     if iceA == True:
-        print('Working on Sea-ice fraction of cell covered by ice.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['aice'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['aice'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('aice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Fraction of Cell Covered by Ice'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-Ice Fraction of Cell Covered by Ice.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['aice'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('aice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Fraction of Cell Covered by Ice'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['aice'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['aice'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('aice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Fraction of Cell Covered by Ice'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['aice'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
-    if iceH == True:
-        print('Working on Sea-ice average ice thickness in cell.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['hice'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['hice'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('hice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Average Ice Thickness in Cell'
-        iceNewVar.units          = 'meter'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+    # If Budgell Sea-Ice Average Ice Thickness in Cell has been chosen.                                               
+    if iceAge == True:
+        print('Working on Budgell Sea-Ice Average Ice Thickness in Cell.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['hice'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('hice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Average Ice Thickness in Cell'
+                    iceNewVar.units     = 'meters'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['hice'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['hice'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('hice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Average Ice Thickness in Cell'
+                    iceNewVar.units     = 'meters'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['hice'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Sea-Ice V-Velocity has been chosen.                                               
     if iceV == True:
-        print('Working on Sea-ice V-velocity.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['vice'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['vice'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'V-component of Ice Velocity'
-        iceNewVar.units          = 'm s-1'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-Ice V-Velocity.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['vice'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'V-component of Ice Velocity'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['vice'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['vice'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'V-component of Ice Velocity'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['vice'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Sea-Ice U-Velocity has been chosen.                                               
     if iceU == True:
-        print('Working on Sea-ice U-velocity.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['uice'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['uice'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('vice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'U-component of Ice Velocity'
-        iceNewVar.units          = 'm s-1'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-Ice U-Velocity.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['uice'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('uice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'U-component of Ice Velocity'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['uice'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['uice'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('uice', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'U-component of Ice Velocity'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['uice'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Sea-cover Thickness has been chosen.                                               
     if iceSnowThick == True:
-        print('Working on Sea-ice U-velocity.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['snow_thick'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['snow_thick'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('snow_thick', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Sea-cover Thickness'
-        iceNewVar.units          = 'meter'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-cover Thickness.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['snow_thick'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('snow_thick', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-cover Thickness'
+                    iceNewVar.units     = 'meter'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['snow_thick'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['snow_thick'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('snow_thick', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-cover Thickness'
+                    iceNewVar.units     = 'meter'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['snow_thick'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Sea-ice Surface Temperature has been chosen.                                               
     if iceSurfaceTemp == True:
-        print('Working on Sea-ice Surface Temperature.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['tisrf'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['tisrf'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('tisrf', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Sea-ice Surface Temperature'
-        iceNewVar.units          = 'Degree Celsius'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Sea-ice Surface Temperature.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['tisrf'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('tisrf', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-Ice Surface Temperature'
+                    iceNewVar.units     = 'Degree Celsius'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['tisrf'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['tisrf'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('tisrf', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Sea-Ice Surface Temperature'
+                    iceNewVar.units     = 'Degree Celsius'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['tisrf'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
+    # If Budgell Ice-Ocean Mass Flux has been chosen.                                               
     if iceOceanMassFlux == True:
-        print('Working on Ice-Ocean Mass Flux.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['iomflx'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['iomflx'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('iomflx', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Ice-Ocean Mass Flux'
-        iceNewVar.units          = 'm s-1'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
+        print('Working on Budgell Ice-Ocean Mass Flux.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['iomflx'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('iomflx', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Ice-Ocean Mass Flux'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['iomflx'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['iomflx'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('iomflx', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Ice-Ocean Mass Flux'
+                    iceNewVar.units     = 'm s-1'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['iomflx'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
 
-    if iceInteriorTemp == True:
-        print('Working on Interior Ice Temperature.')
-        if selectIceBox == True:
-            iceRawVar            = iceRawFile.variables['ti'][:,j0:j1, i0:i1]  
-        else:              
-            iceRawVar            = iceRawFile.variables['ti'][:,:,:]
-        iceNewVar                = iceNewFile.createVariable('ti', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), zlib=True, fill_value=iceFillVal)
-        iceNewVar.long_name      = 'Interior Ice Temperature'
-        iceNewVar.units          = 'Degree Celcius'
-        iceNewVar[:,:,:]         = iceRawVar
-        del iceRawVar, iceNewVar  
-
-
-
-
+    # If Budgell Interior Ice Temperature has been chosen.                                               
+    if iceOceanMassFlux == True:
+        print('Working on Budgell Interior Ice Temperature.')
+        bar = IncrementalBar(max=len(ntimes))
+        for i in range(np.argmin(ntimes),np.argmax(ntimes),1):
+            if selectRomsBox == True:
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['ti'][i,j0:j1, i0:i1]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('ti', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Interior Ice Temperature'
+                    iceNewVar.units     = 'Degree Celcius'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['ti'][i,j0:j1,i0:i1]
+                    iceNewVar[i,:,:] = iceRawVar                         
+            else: 
+                if i == np.argmin(ntimes):
+                    iceRawFile = iceRawFile.variables['ti'][i,:,:]
+                    iceNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                    iceNewVar = iceNewFile.createVariable('ti', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=iceFillVal)
+                    iceNewVar.long_name = 'Interior Ice Temperature'
+                    iceNewVar.units     = 'Degree Celcius'
+                    iceNewVar[i,:,:] = iceRawVar  
+                else:
+                    iceRawFile = iceRawFile.variables['ti'][i,:,:]
+                    iceNewVar[i,:,:] = iceRawVar                     
+            bar.next()
+        bar.finish() 
