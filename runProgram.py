@@ -8,8 +8,7 @@ Version:        1.2
 Python version: 3.3+
 
 TODO:
-    - Fix WRF
-    - Insert WW3
+    - Add WW3 section.
 """
 
 # Import libraries.

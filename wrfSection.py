@@ -1,8 +1,8 @@
 """
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2019
-Last modified:  03 Jan 2021
-Version:        2.0
+Last modified:  05 Jan 2021
+Version:        2.12
 
 This file generates a new WRF output file from scratch.
 It is netCDF4 CF-compliant.
@@ -19,7 +19,7 @@ from progress.bar import IncrementalBar
 import numpy      as np
 import time
 
-if wrfTemp or wrfPotTemp or wrfRh or wrfTd or wrfTwb or wrfTv or wrfPressure or wrfUnstaggeredU or wrfUnstaggeredV or wrfUnstaggeredW or wrfUvmet or wrfUvmet10m or wrfLatent or wrfSensible or wrfSlp or wrfAvo or wrfDbz or wrfGeopt or wrfOmega or wrfPvo or wrfTerrain or wrfRh2 or wrfTd2 or wrfLandmask== True:
+if wrfTemp or wrfPotTemp or wrfRh or wrfTd or wrfTwb or wrfTv or wrfSST or wrfPressure or wrfUnstaggeredU or wrfUnstaggeredV or wrfUnstaggeredW or wrfUvmet or wrfUvmet10m or wrfLatent or wrfSensible or wrfSlp or wrfAvo or wrfDbz or wrfGeopt or wrfOmega or wrfPvo or wrfTerrain or wrfRh2 or wrfTd2 or wrfLandmask== True:
     wrfMassPoints = True
 else:
     wrfMassPoints = False   
@@ -110,6 +110,7 @@ def wrfVars(wrfOriDir,wrfNewDir):
         else:
             print("No time-step selected. Working with entire time-step.")
             ntimes = getvar(wrfRawFile,'LH',meta=False, timeidx=None)[:,0,0]
+            ntimes = np.arange(np.argmin(ntimes), len(ntimes)) 
             wrfNewFile.createDimension('Time', len(ntimes))
             
         # If WRF Temperature has been chosen.
@@ -1630,3 +1631,33 @@ def wrfVars(wrfOriDir,wrfNewDir):
                     wrfNewVar.long_name = 'Land mask'
                     wrfNewVar.units     = '1=land, 0=water'
                     wrfNewVar[:,:] = wrfRawVar  
+
+        # If WRF Sea Surface Temperature has been chosen.                                               
+        if wrfSST == True:
+            print('Working on WRF Sea Surface Temperature.')
+            bar = IncrementalBar(max=len(ntimes))
+            for i in range(np.argmin(ntimes),len(ntimes),1):
+                if selectWrfBox == True:
+                    if i == np.argmin(ntimes):
+                        wrfRawVar = getvar(wrfRawFile,'SST', meta=False, timeidx=ntimes[0]+i)[j0:j1, i0:i1] 
+                        wrfNewVar = np.zeros([len(ntimes),len(lat_wrf[:,0]), len(lon_wrf[0,:])])
+                        wrfNewVar = wrfNewFile.createVariable('SST', 'f', ('Time', 'south_north', 'west_east'), fill_value=wrfFillVal)
+                        wrfNewVar.long_name = 'Sea Surface Temperature'
+                        wrfNewVar.units     = 'Degree Celsius'
+                        wrfNewVar[i,:,:] = wrfRawVar  
+                    else:
+                        wrfRawVar = getvar(wrfRawFile,'SST', meta=False, timeidx=ntimes[0]+i)[j0:j1, i0:i1] 
+                        wrfNewVar[i,:,:] = wrfRawVar                         
+                else: 
+                    if i == np.argmin(ntimes):
+                        wrfRawVar = getvar(wrfRawFile,'SST', meta=False, timeidx=ntimes[0]+i)[:, :] 
+                        wrfNewVar = np.zeros([len(ntimes),len(lat_wrf[:,0]), len(lon_wrf[0,:])])
+                        wrfNewVar = wrfNewFile.createVariable('SST', 'f', ('Time', 'south_north', 'west_east'), fill_value=wrfFillVal)
+                        wrfNewVar.long_name = 'Sea Surface Temperature'
+                        wrfNewVar.units     = 'Degree Celsius'
+                        wrfNewVar[i,:,:] = wrfRawVar  
+                    else:
+                        wrfRawVar = getvar(wrfRawFile,'SST', meta=False, timeidx=ntimes[0]+i)[:, :] 
+                        wrfNewVar[i,:,:] = wrfRawVar                     
+                bar.next()
+            bar.finish() 

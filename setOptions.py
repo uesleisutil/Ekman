@@ -1,8 +1,8 @@
 """
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2020
-Last modified:  03 Jan 2021
-Version:        2.0
+Last modified:  06 Jan 2021
+Version:        2.12
 
 Use this file to select what do you want Ekman Toolbox to do.
 """
@@ -18,16 +18,17 @@ projectAuthor        = 'Ueslei Adriano Sutil'
 romsOriginalFilename = 'ocean_his.nc'
 romsNewFilename      = 'ocean_his_new.nc'
 
-selectRomsBox        = True
+selectRomsBox        = False
 romsBox              = [-53, -40, -32, -23] # [lon_min, lon_max, lat_min, lat_max]
 
-selectRomsLevel      = True
+selectRomsLevel      = False
 romsLevel            = np.arange(27, 28+1)
 
 selectRomsTimeStep   = False
 romsTimeStep         = np.arange(100, 255+1)
 
 selectRomsVars       = False
+romsSST              = True
 romsTemp             = False
 romsSalt             = False
 romsTKE              = False
@@ -83,8 +84,8 @@ wrfBox              = [-53, -40, -32, -23] # [lon_min, lon_max, lat_min, lat_max
 selectWrfLevel      = True
 wrfLevel            = np.arange(27, 28+1)
 
-selectWrfTimeStep   = True
-wrfTimeStep         = np.arange(150, 162+1)
+selectWrfTimeStep   = False
+wrfTimeStep         = np.arange(0, 162+1)
 
 selectWrfVars       = True
 wrfTemp             = False
@@ -110,7 +111,8 @@ wrfSlp              = False
 wrfRh2              = False
 wrfTd2              = False
 wrfTerrain          = False
-wrfLandmask         = True
+wrfLandmask         = False
+wrfSST              = True
 
 wrfU                = False
 wrfV                = False

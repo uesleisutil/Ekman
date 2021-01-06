@@ -1,8 +1,8 @@
 """
 Author:         Ueslei Adriano Sutil
 Created:        08 Apr 2020
-Last modified:  03 Jan 2021
-Version:        2.0
+Last modified:  06 Jan 2021
+Version:        2.12
 
 This file generates a new ROMS output file from scratch.
 It is netCDF4 CF-compliant.
@@ -18,7 +18,7 @@ from   progress.bar import IncrementalBar
 import numpy        as     np
 import time
 
-if romsTemp or romsSalt or romsZeta or romsTKE or romsLatent or romsSensible or romsLWRad or romsSWRad or romsEvaporation or romsEminusP or romsUwind or romsVwind or romsW or romsOmega or romsRho == True:
+if romsSST or romsTemp or romsSalt or romsZeta or romsTKE or romsLatent or romsSensible or romsLWRad or romsSWRad or romsEvaporation or romsEminusP or romsUwind or romsVwind or romsW or romsOmega or romsRho == True:
     romsMassPoints = True
 else:
     romsMassPoints = False   
@@ -104,11 +104,11 @@ def romsVars(romsOriDir,romsNewDir):
 
         # Define vertical levels and time-steps. 
         levels = len(romsRawFile.variables['s_rho'][:]) 
-        if selectRomsLevel == True and len(romsLevel) == 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
+        if selectRomsLevel == True and len(romsLevel) == 1:
             print("One vertical level selected: Working on vertical level "+str(romsLevel)+".")
-        if selectRomsLevel == True and len(romsLevel) > 1 and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
+        if selectRomsLevel == True and len(romsLevel) > 1:
             print("Multiple vertical levels selected: Working from level "+str(romsLevel[0])+" to "+str(romsLevel[-1])+".")
-        if selectRomsLevel == False and romsTemp or romsSalt or romsTKE or romsRho or romsZeta == True:
+        if selectRomsLevel == False:
             print("No selected vertical levels specified: Using entire vertical level from input file.")
         if selectRomsTimeStep == True:
             ntimes = romsTimeStep
@@ -116,8 +116,40 @@ def romsVars(romsOriDir,romsNewDir):
             print("Time-step selected: Working from time-step "+str(ntimes[0])+" to "+str(ntimes[-1])+".")
         else:
             ntimes = romsRawFile.variables['ocean_time'][:]
+            ntimes = np.arange(np.argmin(ntimes), len(ntimes)) 
             romsNewFile.createDimension('ocean_time', 0)
             print("No time-step selected. Working with entire time-step.")
+
+        # If ROMS Sea Surface Temperature has been chosen.                                               
+        if romsSST == True:
+            print('Working on ROMS Sea Surface Temperature.')
+            bar = IncrementalBar(max=len(ntimes))
+            for i in range(np.argmin(ntimes),len(ntimes),1):
+                if selectRomsBox == True:
+                    if i == np.argmin(ntimes):
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,-1,j0:j1, i0:i1]
+                        romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                        romsNewVar = romsNewFile.createVariable('sst', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
+                        romsNewVar.long_name = 'Sea Surface Temperature'
+                        romsNewVar.units     = 'Degree Celsius'
+                        romsNewVar[i,:,:] = romsRawVar  
+                    else:
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,-1,j0:j1,i0:i1]
+                        romsNewVar[i,:,:] = romsRawVar                         
+                else: 
+                    if i == np.argmin(ntimes):
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,-1,:,:]
+                        romsNewVar = np.zeros([len(ntimes),len(lat_rho), len(lon_rho)])
+                        romsNewVar = romsNewFile.createVariable('sst', 'f', ('ocean_time', 'eta_rho', 'xi_rho'), fill_value=romsFillVal)
+                        romsNewVar.long_name = 'Sea Surface Temperature'
+                        romsNewVar.units     = 'Degree Celsius'
+                        romsNewVar[i,:,:] = romsRawVar  
+                    else:
+                        romsRawVar = romsRawFile.variables['temp'][ntimes[0]+i,-1,:,:]
+                        romsNewVar[i,:,:] = romsRawVar                     
+                bar.next()
+            bar.finish() 
+
 
         # If ROMS Potential Temperature has been chosen.
         if romsTemp == True:
