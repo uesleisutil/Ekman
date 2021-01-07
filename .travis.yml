@@ -1,8 +1,7 @@
 # This Travis-CI file is for testing the state of the Ekman source code.
 
 # This is a not a c-language project but we use the same environment.
-language: c
-dist: bionic
+language: python
 
 addons:
   apt:
