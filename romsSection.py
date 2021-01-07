@@ -12,7 +12,6 @@ WARNING: Do not change anything in this file.
 
 from   netCDF4      import Dataset
 from   setOptions   import *
-from   numpy        import dtype
 from   matplotlib   import path 
 from   progress.bar import IncrementalBar
 import numpy        as     np

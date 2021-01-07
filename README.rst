@@ -23,7 +23,6 @@ Required libraries
 
 4. matplotlib
 
-5. Cartopy.
 
 Contact
 =============
